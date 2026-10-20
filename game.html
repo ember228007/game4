@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кибер-Пятнашки (15)</title>
+    <style>
+        :root {
+            --bg: #090d16;
+            --panel: #131b2e;
+            --accent: #f59e0b;
+            --accent-glow: rgba(245, 158, 11, 0.3);
+            --success: #22c55e;
+            --text: #f8fafc;
+            --muted: #64748b;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: var(--panel);
+            border: 2px solid rgba(245, 158, 11, 0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+            padding: 25px;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 360px;
+            position: relative;
+            text-align: center;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 3px;
+            background: linear-gradient(90deg, var(--accent), #ef4444);
+            border-radius: 20px 20px 0 0;
+        }
+
+        h1 {
+            color: var(--accent);
+            font-size: 1.5rem;
+            margin-top: 0;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-size: 0.85rem;
+            margin-bottom: 15px;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #1e293b;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        .stats span {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            background: #070a12;
+            padding: 12px;
+            border-radius: 14px;
+            border: 2px solid #1e293b;
+            margin-bottom: 20px;
+        }
+
+        .tile {
+            aspect-ratio: 1;
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: var(--text);
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.15s, border-color 0.15s, transform 0.1s;
+        }
+
+        .tile:hover:not(.empty) {
+            background: #334155;
+            border-color: var(--accent);
+        }
+
+        .tile.empty {
+            background: transparent;
+            border-color: transparent;
+            cursor: default;
+        }
+
+        .btn-restart {
+            background: linear-gradient(135deg, var(--accent), #d97706);
+            color: #070a12;
+            border: none;
+            width: 100%;
+            padding: 12px;
+            font-size: 0.95rem;
+            font-weight: 800;
+            border-radius: 10px;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px var(--accent-glow);
+            transition: opacity 0.2s;
+        }
+
+        .btn-restart:hover {
+            opacity: 0.9;
+        }
+
+        /* Окно результатов (Модалка) */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(9, 13, 22, 0.85);
+            backdrop-filter: blur(5px);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background: var(--panel);
+            border: 2px solid var(--success);
+            box-shadow: 0 0 30px rgba(34, 197, 94, 0.3);
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 300px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .modal-content h2 {
+            color: var(--success);
+            margin-top: 0;
+            font-size: 1.8rem;
+        }
+
+        .result-stats {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            padding: 12px;
+            margin: 15px 0;
+            font-size: 0.9rem;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            text-align: left;
+        }
+
+        .result-stats div {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .result-stats span {
+            color: var(--success);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Пятнашки</h1>
+        <div class="subtitle">Соберите числа по порядку от 1 до 15</div>
+
+        <div class="stats">
+            <div>Ходы: <span id="moves">0</span></div>
+            <div>Время: <span id="timer">0</span>с</div>
+        </div>
+
+        <div class="board" id="board"></div>
+
+        <button class="btn-restart" onclick="startGame()">Начать заново</button>
+    </div>
+
+    <!-- Модальное окно победы -->
+    <div class="modal" id="resultModal">
+        <div class="modal-content">
+            <h2>ПОБЕДА! 🎉</h2>
+            <p>Вы успешно собрали головоломку!</p>
+            
+            <div class="result-stats">
+                <div>Ходов сделано: <span id="resMoves">0</span></div>
+                <div>Затрачено времени: <span id="resTime">0 сек</span></div>
+            </div>
+
+            <button class="btn-restart" onclick="startGame()">Играть снова</button>
+        </div>
+    </div>
+
+    <script>
+        let board = [];
+        let emptyIndex = 15;
+        let moves = 0;
+        let timer = 0;
+        let timerInterval = null;
+        let gameStarted = false;
+        let isWon = false;
+
+        const boardEl = document.getElementById('board');
+        const movesEl = document.getElementById('moves');
+        const timerEl = document.getElementById('timer');
+        const modal = document.getElementById('resultModal');
+        const resMoves = document.getElementById('resMoves');
+        const resTime = document.getElementById('resTime');
+
+        // Web Audio API звуковой движок
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            let now = audioCtx.currentTime;
+
+            if (type === 'move') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(350, now);
+                osc.frequency.exponentialRampToValueAtTime(150, now + 0.05);
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.linearRampToValueAtTime(0.001, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.linearRampToValueAtTime(80, now + 0.1);
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.linearRampToValueAtTime(0.001, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'win') {
+                let notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, index) => {
+                    let o = audioCtx.createOscillator();
+                    let g = audioCtx.createGain();
+                    o.connect(g);
+                    g.connect(audioCtx.destination);
+                    o.frequency.setValueAtTime(freq, now + index * 0.1);
+                    g.gain.setValueAtTime(0.12, now + index * 0.1);
+                    g.gain.linearRampToValueAtTime(0.001, now + index * 0.1 + 0.15);
+                    o.start(now + index * 0.1);
+                    o.stop(now + index * 0.1 + 0.15);
+                });
+            }
+        }
+
+        function startGame() {
+            modal.style.display = 'none';
+            moves = 0;
+            timer = 0;
+            movesEl.textContent = moves;
+            timerEl.textContent = timer;
+            gameStarted = false;
+            isWon = false;
+            clearInterval(timerInterval);
+
+            // Инициализация правильного порядка
+            board = Array.from({length: 15}, (_, i) => i + 1);
+            board.push(null);
+            emptyIndex = 15;
+
+            // Перемешиваем гарантированно решаемой комбинацией
+            shuffleBoard();
+            renderBoard();
+        }
+
+        // Проверка на решаемость пятнашек
+        function isSolvable(arr) {
+            let inversions = 0;
+            let cleanArr = arr.filter(val => val !== null);
+            for (let i = 0; i < cleanArr.length - 1; i++) {
+                for (let j = i + 1; j < cleanArr.length; j++) {
+                    if (cleanArr[i] > cleanArr[j]) inversions++;
+                }
+            }
+            let emptyRowFromBottom = 4 - Math.floor(emptyIndex / 4);
+            if (emptyRowFromBottom % 2 === 0) {
+                return inversions % 2 !== 0;
+            } else {
+                return inversions % 2 === 0;
+            }
+        }
+
+        function shuffleBoard() {
+            do {
+                for (let i = board.length - 2; i > 0; i--) {
+                    let j = Math.floor(Math.random() * (i + 1));
+                    [board[i], board[j]] = [board[j], board[i]];
+                }
+                emptyIndex = board.indexOf(null);
+            } while (!isSolvable(board) || checkWin());
+        }
+
+        function renderBoard() {
+            boardEl.innerHTML = '';
+            board.forEach((val, index) => {
+                const tile = document.createElement('div');
+                tile.className = 'tile';
+                if (val === null) {
+                    tile.classList.add('empty');
+                } else {
+                    tile.textContent = val;
+                    tile.onclick = () => moveTile(index);
+                }
+                boardEl.appendChild(tile);
+            });
+        }
+
+        function moveTile(index) {
+            if (isWon) return;
+
+            let row = Math.floor(index / 4);
+            let col = index % 4;
+            let emptyRow = Math.floor(emptyIndex / 4);
+            let emptyCol = emptyIndex % 4;
+
+            // Проверка, что плитка рядом с пустой ячейкой
+            let isAdjacent = (Math.abs(row - emptyRow) + Math.abs(col - emptyCol)) === 1;
+
+            if (isAdjacent) {
+                if (!gameStarted) {
+                    gameStarted = true;
+                    timerInterval = setInterval(() => {
+                        timer++;
+                        timerEl.textContent = timer;
+                    }, 1000);
+                }
+
+                playSound('move');
+                board[emptyIndex] = board[index];
+                board[index] = null;
+                emptyIndex = index;
+                moves++;
+                movesEl.textContent = moves;
+                renderBoard();
+
+                if (checkWin()) {
+                    finishGame();
+                }
+            } else {
+                playSound('error');
+            }
+        }
+
+        function checkWin() {
+            for (let i = 0; i < 14; i++) {
+                if (board[i] !== i + 1) return false;
+            }
+            return board[14] === 15 && board[15] === null;
+        }
+
+        function finishGame() {
+            isWon = true;
+            clearInterval(timerInterval);
+            playSound('win');
+
+            resMoves.textContent = moves;
+            resTime.textContent = `${timer} сек.`;
+            modal.style.display = 'flex';
+        }
+
+        // Автозапуск игры
+        startGame();
+    </script>
+</body>
+</html>
